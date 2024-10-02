@@ -1,0 +1,31 @@
+FROM ubuntu:focal
+
+WORKDIR /app
+
+RUN apt-get update
+
+# Install curl tool
+RUN apt-get install -y curl git wget
+
+# Install go and setup path
+RUN wget -c https://go.dev/dl/go1.23.1.linux-amd64.tar.gz
+RUN tar -xzf go1.23.1.linux-amd64.tar.gz -C /usr/local
+
+ENV PATH="$PATH:/usr/local/go/bin"
+
+# Install Node JS and npm
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+&& apt-get install -y nodejs
+
+# copy the script file
+COPY entry.sh .
+RUN chmod +x /app/entry.sh
+
+# Build the go file into binary
+COPY go.mod go.sum ./
+RUN go mod download
+COPY *.go ./
+RUN go build -o /app/bin/build-server main.go
+RUN chmod +x /app/bin/build-server
+
+ENTRYPOINT ["/app/entry.sh"]

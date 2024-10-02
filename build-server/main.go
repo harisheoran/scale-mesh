@@ -32,7 +32,7 @@ func main() {
 	*/
 
 	// Go to the clonned repo and build the code
-	path := "/home/harisheoran/3-tier-k8s/3-tier-web-app-deployment/frontend/"
+	path := "/app/output"
 	err = os.Chdir(path)
 	if err != nil {
 		log.Fatal("ERROR: unable to find cloned repo", err)
@@ -54,7 +54,7 @@ func main() {
 
 	log.Println("Uploading build artifacts to S3 bucket...")
 	// change the directory to the build output directory
-	buildOutputPath := "/home/harisheoran/3-tier-k8s/3-tier-web-app-deployment/frontend/dist/"
+	buildOutputPath := "/app/output/dist/"
 	err = os.Chdir(buildOutputPath)
 	if err != nil {
 		log.Fatal("ERROR: Build directory not found", err)

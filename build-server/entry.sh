@@ -1,13 +1,10 @@
 #! /bin/bash
 
-# Purpose:
+# Purpose: To clone the repo
 
 # 1. Clone the repo
-read GITHUB_REPO_URL
-git clone $GITHUB_REPO_URL webapp
+export GITHUB_REPO_URL=$GITHUB_REPO_URL
+git clone $GITHUB_REPO_URL /app/output
 
-# 2. Build the app
-cd webapp && npm install && npm run build
-
-# 3. execute script
-go run build.go
+# 3. execute the build-server script
+/app/bin/build-server

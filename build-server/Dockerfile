@@ -1,21 +1,36 @@
-FROM ubuntu:focal
+# Build stage: build the golang binary
+FROM golang:1.23.1 as buildscript
 
 WORKDIR /app
 
-// Install curl tool
-RUN sudo apt install ca-certificates curl gnupg git wget
+COPY go.mod go.sum ./
 
-// Install go and setup path
-RUN wget -c https://go.dev/dl/go1.23.1.linux-amd64.tar.gz \
-&& sudo tar -xzf go1.23.1.linux-amd64.tar.gz -C /usr/local \
-&& echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc \
-&& source ~/.bashrc
+RUN go mod download
 
-// Install Node JS and npm
-RUN curl -fsSL https://deb.nodesource.com/setup_20.x | sudo bash - \
-&& sudo apt-get install -y nodejs
+COPY *.go ./
 
-COPY /app
+#RUN go build -o /app/bin/build-server main.go (statically compile it)
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /app/bin/build-server main.go
 
+RUN chmod +x /app/bin/build-server
 
-ENTRYPOINT ["entry.sh"]
+#################
+# Prod stage
+#################
+FROM ubuntu:focal as prod
+
+WORKDIR /app
+
+COPY --from=buildscript /app/bin/build-server /app/bin/build-server
+
+RUN apt-get update && apt-get install -y curl git wget
+
+# Install Node JS and npm
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+&& apt-get install -y nodejs
+
+# copy the script file and set executable permissions
+COPY entry.sh .
+RUN chmod +x /app/entry.sh /app/bin/build-server
+
+ENTRYPOINT ["/app/entry.sh"]
