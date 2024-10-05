@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/fs"
 	"log"
+	"mime"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -16,8 +17,8 @@ import (
 
 func main() {
 
-	var projectID = os.Getenv("project_id")
-
+	var projectID = os.Getenv("projectID")
+	fmt.Println("Project ID", projectID)
 	// Authenticate with AWS SDK
 	cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion("ap-south-1"))
 	if err != nil {
@@ -94,13 +95,15 @@ func uploadArtifactToS3(s3Client *s3.Client, filename string, projectID string) 
 
 	defer file.Close()
 
-	contentType := filepath.Ext(filename)
+	ext := filepath.Ext(filename)
+	contentType := mime.TypeByExtension(ext)
+	log.Printf("Uploading %s with content-type: %s", filename, contentType)
 
 	_, err = s3Client.PutObject(context.TODO(), &s3.PutObjectInput{
 		Bucket:      aws.String(bucketName),
 		Body:        file,
-		Key:         &objectKey,
-		ContentType: &contentType,
+		Key:         aws.String(objectKey),
+		ContentType: aws.String(contentType),
 	})
 
 	if err != nil {
