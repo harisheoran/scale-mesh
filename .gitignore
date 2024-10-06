@@ -12,11 +12,14 @@
 ./api-server/bin/*
 ./build-sevrer/bin/*
 ./reverse-proxy/bin/*
+./frontend/bin/*
 
 ./tmp/*
 ./api-server/tmp/*
 ./build-sevrer/tmp/*
 ./reverse-proxy/tmp/*
+./frontend/tmp/*
+
 
 # Test binary, built with `go test -c`
 *.test

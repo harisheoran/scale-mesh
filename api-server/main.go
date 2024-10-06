@@ -16,6 +16,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
 	"github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/logging"
+	"github.com/gin-gonic/gin"
 )
 
 type RepoUrl struct {
@@ -36,44 +37,42 @@ func main() {
 	ecsClient := ecs.NewFromConfig(cfg)
 	fmt.Println(ecsClient)
 
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, "Heello")
-	})
+	// Gin router
+	var router = gin.Default()
 
-	// Listen for POST on /project
-	http.HandleFunc("/project", func(w http.ResponseWriter, request *http.Request) {
+	router.POST("/project", func(ctx *gin.Context) {
 		projectID := generateProjectID(5)
 		var githubRepoUrl RepoUrl
-		body := request.Body
+		body := ctx.Request.Body
 
 		err := json.NewDecoder(body).Decode(&githubRepoUrl)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			ctx.JSON(http.StatusNotFound, gin.H{
+				"response": "Send a valid requeset",
+			})
 			return
 		}
 
-		if request.Method == http.MethodPost {
-			if len(githubRepoUrl.GITHUB_REPO_URL) != 0 {
-
-				// Run the ECS task
-				err = runEcsTask(ecsClient, githubRepoUrl.GITHUB_REPO_URL, projectID)
-				if err != nil {
-					log.Fatal("ERROR: running the task", err.Error())
-				}
-				websiteURL := "http://" + projectID + ".localhost:8080"
-				fmt.Fprint(w, "Building started...", "Access the website here-", websiteURL)
-			} else {
-				fmt.Fprintf(w, "Please Pass GITHUB_REPO_URL in json.")
+		if len(githubRepoUrl.GITHUB_REPO_URL) != 0 {
+			// Run the ECS task
+			err = runEcsTask(ecsClient, githubRepoUrl.GITHUB_REPO_URL, projectID)
+			if err != nil {
+				log.Fatal("ERROR: running the task", err.Error())
 			}
+			websiteURL := "http://" + projectID + ".localhost:8080"
+			ctx.JSON(http.StatusOK, gin.H{
+				"status":     "Start deploying...",
+				"websiteUrl": websiteURL,
+			})
 		} else {
-			fmt.Fprint(w, "Not a Valid Request, send a POST request")
+			ctx.JSON(http.StatusNotFound, gin.H{
+				"response": "Send a valid Github Repository URL",
+			})
+			return
 		}
 	})
 
-	err = http.ListenAndServe(":9000", nil)
-	if err != nil {
-		log.Fatal("ERROR: starting the api server", err)
-	}
+	router.Run(":9000")
 
 }
 
