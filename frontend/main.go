@@ -19,6 +19,7 @@ func main() {
 	http.HandleFunc("/", homePage)
 
 	err := http.ListenAndServe(":4000", nil)
+
 	if err != nil {
 		log.Fatal("ERROR: starting the server ", err)
 	}
