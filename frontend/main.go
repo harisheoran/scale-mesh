@@ -18,6 +18,7 @@ var apiUrl = "http://127.0.0.1:9000/project"
 func main() {
 	http.HandleFunc("/", homePage)
 
+	log.Println("Starting the server on port 4000")
 	err := http.ListenAndServe(":4000", nil)
 
 	if err != nil {
