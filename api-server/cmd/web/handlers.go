@@ -7,14 +7,11 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
-	"os"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
 	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
 	"github.com/aws/smithy-go"
-	"github.com/aws/smithy-go/logging"
 	"github.com/gin-gonic/gin"
 )
 
@@ -29,22 +26,15 @@ func (app *app) healthHandler(context *gin.Context) {
 }
 
 func (app *app) runEcsTaskHandler(ctx *gin.Context) {
+	projectID := generateProjectID(5)
 
 	// configure the AWS SDK for ECS
-	logger := logging.NewStandardLogger(os.Stdout)
-	cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion("ap-south-1"),
-		config.WithClientLogMode(aws.LogRequestWithBody|aws.LogResponseWithBody), // Log request and response body
-		config.WithLogger(logger))
+	cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion("ap-south-1"))
 	if err != nil {
 		app.errorLogger.Println("Unable to authorise the AWS.", err)
 	}
 	// Create an ECS Client
 	ecsClient := ecs.NewFromConfig(cfg)
-
-	// project endpoint to start the ECS task
-
-	// Generate a random project ID
-	projectID := generateProjectID(5)
 
 	// object to decode the payload JSON
 	var githubRepoUrl RepoUrl
@@ -137,7 +127,7 @@ func runEcsTask(ecsClient *ecs.Client, githubRepoUrlEnv string, projectID string
 	}
 
 	// Run the TASK
-	result, err := ecsClient.RunTask(context.TODO(), &runTaskInput)
+	_, err := ecsClient.RunTask(context.TODO(), &runTaskInput)
 
 	if err != nil {
 		var apiErr smithy.APIError // Cast to smithy.APIError to get more detailed error information
@@ -149,8 +139,6 @@ func runEcsTask(ecsClient *ecs.Client, githubRepoUrlEnv string, projectID string
 		}
 		return err
 	}
-
-	log.Println("Task launched successfully", result)
 
 	return nil
 }
@@ -166,3 +154,5 @@ func generateProjectID(n int) string {
 
 	return string(str)
 }
+
+// websocket handeler
