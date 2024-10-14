@@ -11,7 +11,7 @@ docker-build:
   # All branches are tagged with $DOCKER_IMAGE_NAME (defaults to commit ref slug)
   # Default branch is also tagged with `latest`
   script:
-    - docker build --pull -t "$DOCKER_IMAGE_NAME:main" -f api-server/Dockerfile .
+    - docker build --pull -t "$DOCKER_IMAGE_NAME:main" -f api-server/Dockerfile api-server/
     - docker push "$DOCKER_IMAGE_NAME:main"
   only:
     - main
