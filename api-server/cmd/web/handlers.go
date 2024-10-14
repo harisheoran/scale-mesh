@@ -13,6 +13,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
 	"github.com/aws/smithy-go"
 	"github.com/gin-gonic/gin"
+	"gitlab.com/harisheoran/scale-mesh/api-server/pkg/models"
 )
 
 // Health Check endpoint handler
@@ -25,7 +26,7 @@ func (app *app) healthHandler(context *gin.Context) {
 	)
 }
 
-func (app *app) runEcsTaskHandler(ctx *gin.Context) {
+func (app *app) deploymentHandler(ctx *gin.Context) {
 	projectID := generateProjectID(5)
 
 	// configure the AWS SDK for ECS
@@ -155,4 +156,34 @@ func generateProjectID(n int) string {
 	return string(str)
 }
 
-// websocket handeler
+// /project endpoint to save the project info to db
+func (app *app) projectHandler(ctx *gin.Context) {
+	projectData := models.Project{}
+
+	body := ctx.Request.Body
+	err := json.NewDecoder(body).Decode(&projectData)
+	if err != nil {
+		app.errorLogger.Println("Unable to decode the request payload JSON.")
+		ctx.JSON(
+			http.StatusInternalServerError,
+			gin.H{
+				"response": "Server Issue",
+			},
+		)
+	}
+
+	id, err := app.projectModel.Insert(projectData)
+	if err != nil {
+		ctx.JSON(
+			http.StatusInternalServerError,
+			gin.H{
+				"response": "Unable to save the data.",
+			},
+		)
+	}
+
+	log.Println(err)
+
+	log.Println(id)
+
+}

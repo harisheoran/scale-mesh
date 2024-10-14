@@ -27,7 +27,7 @@ go mod download
 
 Run the API
 ```
-air --build.cmd "go build -o bin/api ./cmd/web/main.go" --build.bin "./bin/api"
+air --build.cmd "go build -o bin/api ./cmd/web/" --build.bin "./bin/api"
 ```
 
 this API will start at port 9000, check the api at ```127.0.0.1:9000/health```.
@@ -44,6 +44,10 @@ air --build.cmd "go build -o bin/api ./cmd/web/main.go" --build.bin "./bin/api"
 ## Structure
 
 ### API-Server
+- ***cmd/web/***
+
+- ***pkg***
+    contains the ancillary non-application-specfic code, which could potentially be reused.
 
 #### Endpoints
 - ***GET*** ```/health``` to check health of the API.
