@@ -1,12 +1,16 @@
 package main
 
-import "github.com/gin-gonic/gin"
+import (
+	"net/http"
 
-func (app *app) routes() *gin.Engine {
+	"github.com/gin-gonic/gin"
+)
+
+func (app *app) routes() http.Handler {
 	router := gin.Default()
 	router.GET("/health", app.healthHandler)
 	router.POST("/deploy", app.deploymentHandler)
 	router.POST("/project", app.projectHandler)
 
-	return router
+	return secureHeaderMiddleware(router)
 }

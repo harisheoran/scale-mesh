@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/joho/godotenv"
 	_ "github.com/joho/godotenv/autoload"
 	"gitlab.com/harisheoran/scale-mesh/api-server/pkg/models"
 	"gitlab.com/harisheoran/scale-mesh/api-server/pkg/models/postgresql"
@@ -32,12 +31,6 @@ type app struct {
 }
 
 func main() {
-	// Load env
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatal("Error loading .env file")
-	}
-
 	// get the Database connection pool
 	dbConnectionPool, err := openDBConnectionPool(dsn)
 	if err != nil {
@@ -85,7 +78,7 @@ func main() {
 func openDBConnectionPool(dsn string) (*gorm.DB, error) {
 	/*
 		db is here a pool of connection,
-		GO manages these connection as needed, opening and closing connectionsto the database as needed.
+		GO manages these connection as needed, opening and closing connections to the database as needed.
 		so, actual connection to the database is done lazily, as when needed for the first time.
 	*/
 	dbConnectionPool, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
