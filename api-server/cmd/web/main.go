@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"os"
 
-	_ "github.com/joho/godotenv/autoload"
 	"gitlab.com/harisheoran/scale-mesh/api-server/pkg/models"
 	"gitlab.com/harisheoran/scale-mesh/api-server/pkg/models/postgresql"
 	"gorm.io/driver/postgres"
