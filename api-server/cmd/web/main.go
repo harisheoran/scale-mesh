@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/gorilla/sessions"
 	"gitlab.com/harisheoran/scale-mesh/api-server/pkg/models"
 	"gitlab.com/harisheoran/scale-mesh/api-server/pkg/models/postgresql"
 	"gorm.io/driver/postgres"
@@ -13,6 +14,8 @@ import (
 )
 
 var dsn = os.Getenv("DBURI")
+
+var store = sessions.NewCookieStore([]byte(os.Getenv("SESSION_KEY")))
 
 // Payload Struct for /project endpoint
 type RepoUrl struct {
@@ -24,9 +27,11 @@ type ApiConfig struct {
 }
 
 type app struct {
-	errorLogger  *log.Logger
-	infoLogger   *log.Logger
-	projectModel *postgresql.ProjectModel
+	errorLogger      *log.Logger
+	infoLogger       *log.Logger
+	projectModel     *postgresql.ProjectModel
+	userDBController *postgresql.UserDBController
+	session          *sessions.CookieStore
 }
 
 func main() {
@@ -43,18 +48,26 @@ func main() {
 	}
 	defer db.Close()
 
+	// database controllers
 	projectModel := postgresql.ProjectModel{
 		DBConnectionPool: dbConnectionPool,
+	}
+
+	userControler := postgresql.UserDBController{
+		DatabaseConnectionPool: dbConnectionPool,
 	}
 
 	apiConfig := ApiConfig{}
 	// Create Levelled Logging
 	infoLogger := log.New(os.Stdout, "INFO\t", log.Ldate|log.Ltime)
 	errorLogger := log.New(os.Stderr, "ERROR\t", log.Ldate|log.Ltime|log.Lshortfile)
+
 	app := app{
-		errorLogger:  errorLogger,
-		infoLogger:   infoLogger,
-		projectModel: &projectModel,
+		errorLogger:      errorLogger,
+		infoLogger:       infoLogger,
+		projectModel:     &projectModel,
+		userDBController: &userControler,
+		session:          store,
 	}
 
 	flag.StringVar(&apiConfig.address, "address", ":9000", "Port of the api")
@@ -66,9 +79,9 @@ func main() {
 		ErrorLog: errorLogger,
 	}
 
-	err = server.ListenAndServe()
+	err = server.ListenAndServeTLS("./../tls/cert.pem", "./../tls/key.pem")
 	if err != nil {
-		app.errorLogger.Fatalf("unable to start the api at port %s", apiConfig.address)
+		app.errorLogger.Fatalf("unable to start the api at port %s, %s", apiConfig.address, err)
 	}
 
 	app.infoLogger.Printf("API running on port %s", apiConfig.address)
@@ -87,7 +100,7 @@ func openDBConnectionPool(dsn string) (*gorm.DB, error) {
 	}
 
 	// Run the automigration for Project Model
-	if err := dbConnectionPool.AutoMigrate(&models.Project{}); err != nil {
+	if err := dbConnectionPool.AutoMigrate(&models.Project{}, &models.User{}); err != nil {
 		return nil, err
 	}
 

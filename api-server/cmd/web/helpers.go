@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"runtime/debug"
 
@@ -10,10 +11,11 @@ import (
 
 // Centralized Error Helpers
 
-func (app *app) serverError(g gin.ResponseWriter, err error) {
+func (app *app) serverError(w http.ResponseWriter, err error) {
 	trace := fmt.Sprintf("%s\n%s", err.Error(), debug.Stack())
 	app.errorLogger.Println(trace)
-	http.Error(g, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+	log.Println("CHECKING...")
+	http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 }
 
 func (app *app) clientError(g gin.ResponseWriter, status int) {

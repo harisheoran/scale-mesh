@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-deployment
+  namespace: api-ns
+  labels:
+    app: api-server
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      api: api-server
+  template:
+    metadata:
+      labels:
+        api: api-server
+    spec:
+      containers:
+      - name: api-server-container
+        image: harisheoran/api-server:main
+        ports:
+        - containerPort: 9000
+        env:
+          - name: DBURI
+            valueFrom:
+              secretKeyRef:
+                name:  db-password
+                key: DATABASE_URL
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api-svc
+  namespace: api-ns
+spec:
+  type: NodePort
+  selector:
+    api: api-server
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 9000
+      nodePort: 30009

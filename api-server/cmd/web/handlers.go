@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"math/rand"
 	"net/http"
@@ -172,8 +173,9 @@ func (app *app) projectHandler(ctx *gin.Context) {
 		)
 	}
 
-	id, err := app.projectModel.Insert(projectData)
+	_, err = app.projectModel.Insert(projectData)
 	if err != nil {
+		app.errorLogger.Println(err)
 		ctx.JSON(
 			http.StatusInternalServerError,
 			gin.H{
@@ -182,8 +184,101 @@ func (app *app) projectHandler(ctx *gin.Context) {
 		)
 	}
 
-	log.Println(err)
+}
 
-	log.Println(id)
+// user signup
+func (app *app) userSignupHandler(ctx *gin.Context) {
+	user := models.User{}
+
+	body := ctx.Request.Body
+	err := json.NewDecoder(body).Decode(&user)
+	if err != nil {
+		app.errorLogger.Println("Unable to Decode the User details", err)
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"response": "Internal Server Error",
+		})
+		return
+	}
+
+	err = app.userDBController.Insert(user)
+	if err != nil {
+		app.errorLogger.Println("Unable to insert the User details", err)
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"response": "Internal Server Error",
+		})
+		return
+	}
+
+	ctx.JSON(
+		http.StatusOK, gin.H{
+			"response": "User info saved successfully.",
+		},
+	)
+
+}
+
+// user login
+func (app *app) userLoginHandler(ctx *gin.Context) {
+	loginUser := models.LoginUser{}
+
+	err := json.NewDecoder(ctx.Request.Body).Decode(&loginUser)
+	if err != nil {
+		app.errorLogger.Println("Unable to Decode the User details", err)
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"response": "Internal Server Error..",
+		})
+		return
+	}
+
+	id, err := app.userDBController.Authenticate(loginUser.Email, loginUser.Password)
+	if err == models.ErrInvalidCredentials {
+		app.errorLogger.Println(err)
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"response": fmt.Sprintf("%s", models.ErrInvalidCredentials),
+		})
+		return
+
+	} else if err == models.ErrNoRecord {
+		app.errorLogger.Println(err)
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"response": fmt.Sprintf("%s", models.ErrNoRecord),
+		})
+		return
+	} else if err != nil {
+		app.errorLogger.Println(err)
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"response": "Intenal server error.",
+		})
+		return
+	}
+
+	session, _ := app.session.Get(ctx.Request, "thisSession")
+	session.Values["id"] = id
+	err = session.Save(ctx.Request, ctx.Writer)
+	if err != nil {
+		http.Error(ctx.Writer, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	app.infoLogger.Println("saved ID:", id, "COOKIE value:", session.Values["id"])
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"response": "User Logged in successfully.",
+	})
+
+}
+
+// user logout
+func (app *app) userLogoutHandler(ctx *gin.Context) {
+
+	session, _ := app.session.Get(ctx.Request, "thisSession")
+	session.Values["id"] = nil
+	session.Save(ctx.Request, ctx.Writer)
+
+	log.Println("COOKIE VALUE:", session.Values["id"])
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"response": "User Logout successfully.",
+	})
 
 }
