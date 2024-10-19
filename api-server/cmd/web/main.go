@@ -17,21 +17,17 @@ var dsn = os.Getenv("DBURI")
 
 var store = sessions.NewCookieStore([]byte(os.Getenv("SESSION_KEY")))
 
-// Payload Struct for /project endpoint
-type RepoUrl struct {
-	GITHUB_REPO_URL string
-}
-
 type ApiConfig struct {
 	address string
 }
 
 type app struct {
-	errorLogger      *log.Logger
-	infoLogger       *log.Logger
-	projectModel     *postgresql.ProjectModel
-	userDBController *postgresql.UserDBController
-	session          *sessions.CookieStore
+	errorLogger          *log.Logger
+	infoLogger           *log.Logger
+	projectModel         *postgresql.ProjectModel
+	userDBController     *postgresql.UserDBController
+	deploymentController *postgresql.DeploymentController
+	session              *sessions.CookieStore
 }
 
 func main() {
@@ -57,17 +53,22 @@ func main() {
 		DatabaseConnectionPool: dbConnectionPool,
 	}
 
+	deploymentController := postgresql.DeploymentController{
+		DatabaseConnectionPool: dbConnectionPool,
+	}
+
 	apiConfig := ApiConfig{}
 	// Create Levelled Logging
 	infoLogger := log.New(os.Stdout, "INFO\t", log.Ldate|log.Ltime)
 	errorLogger := log.New(os.Stderr, "ERROR\t", log.Ldate|log.Ltime|log.Lshortfile)
 
 	app := app{
-		errorLogger:      errorLogger,
-		infoLogger:       infoLogger,
-		projectModel:     &projectModel,
-		userDBController: &userControler,
-		session:          store,
+		errorLogger:          errorLogger,
+		infoLogger:           infoLogger,
+		projectModel:         &projectModel,
+		userDBController:     &userControler,
+		deploymentController: &deploymentController,
+		session:              store,
 	}
 
 	flag.StringVar(&apiConfig.address, "address", ":9000", "Port of the api")
@@ -100,7 +101,7 @@ func openDBConnectionPool(dsn string) (*gorm.DB, error) {
 	}
 
 	// Run the automigration for Project Model
-	if err := dbConnectionPool.AutoMigrate(&models.Project{}, &models.User{}); err != nil {
+	if err := dbConnectionPool.AutoMigrate(&models.Project{}, &models.User{}, &models.Deployment{}); err != nil {
 		return nil, err
 	}
 

@@ -23,3 +23,16 @@ func (projectModel *ProjectModel) Get() (models.Project, error) {
 
 	return models.Project{}, nil
 }
+
+func (projectModel *ProjectModel) CheckExistingProject(id int) (models.Project, error) {
+	var project models.Project
+	result := projectModel.DBConnectionPool.First(&project, id)
+
+	if result.Error == gorm.ErrRecordNotFound {
+		return project, models.ErrNoRecord
+	} else if result.Error != nil {
+		return project, result.Error
+	}
+
+	return project, nil
+}

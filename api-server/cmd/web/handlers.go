@@ -6,8 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"math/rand"
 	"net/http"
+	"strconv"
 
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
@@ -28,9 +28,51 @@ func (app *app) healthHandler(context *gin.Context) {
 }
 
 func (app *app) deploymentHandler(ctx *gin.Context) {
-	projectID := generateProjectID(5)
+	deploymentPayload := models.Deployment{}
+	err := json.NewDecoder(ctx.Request.Body).Decode(&deploymentPayload)
+	if err != nil {
+		app.errorLogger.Println("Unable to decode the payload JSON.", err)
+		ctx.JSON(http.StatusNotFound, gin.H{
+			"response": "Not a valid requeset payload.",
+		})
+		return
+	}
 
-	// configure the AWS SDK for ECS
+	// second, check the projectID sent is existing id or not
+	project, err := app.projectModel.CheckExistingProject(int(deploymentPayload.ProjectID))
+	if err == models.ErrNoRecord {
+		app.errorLogger.Println("unable to query the project using ID", err)
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"response": "Project Id does not exist",
+		})
+		return
+	} else if err != nil {
+		app.errorLogger.Println("unable to query the project using ID", err.Error())
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"response": "Internal Server Error",
+		})
+		return
+	}
+
+	// check if the project belongs to the logged in user
+	session, err := app.session.Get(ctx.Request, "thisSession")
+	if err != nil {
+		app.errorLogger.Println("unable to get the sesstion")
+	}
+	loggedInUserId := session.Values["id"].(int)
+
+	if uint(loggedInUserId) != project.UserID {
+		ctx.JSON(http.StatusUnauthorized, gin.H{
+			"response": "User not authorized",
+		})
+		return
+	}
+
+	// Check if there is already an existing deployment running or not
+
+	// else
+
+	// configure the AWS SDK to run ECS Task
 	cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion("ap-south-1"))
 	if err != nil {
 		app.errorLogger.Println("Unable to authorise the AWS.", err)
@@ -38,31 +80,32 @@ func (app *app) deploymentHandler(ctx *gin.Context) {
 	// Create an ECS Client
 	ecsClient := ecs.NewFromConfig(cfg)
 
-	// object to decode the payload JSON
-	var githubRepoUrl RepoUrl
-
-	// Decode the payload JSON
-	body := ctx.Request.Body
-	err = json.NewDecoder(body).Decode(&githubRepoUrl)
-	if err != nil {
-		app.errorLogger.Println("Unable to decode the payload JSON.", err)
-		ctx.JSON(http.StatusNotFound, gin.H{
-			"response": "Send a valid requeset",
-		})
-		return
-	}
-
 	// Run the ECS TASK
-	if len(githubRepoUrl.GITHUB_REPO_URL) != 0 {
-		err = runEcsTask(ecsClient, githubRepoUrl.GITHUB_REPO_URL, projectID)
+	if len(project.GitUrl) != 0 {
+		projectID := strconv.FormatUint(uint64(project.ID), 10)
+
+		err = runEcsTask(ecsClient, project.GitUrl, projectID)
 		if err != nil {
 			app.errorLogger.Println("Unable to Run the ECS TASK", err)
 		}
+
+		deploymentPayload.ProjectID = project.ID
+		// Save deployment into the Database
+		deploymentID, err := app.deploymentController.Insert(deploymentPayload)
+		if err != nil {
+			app.errorLogger.Println("Unable to save deployment data into DB.", err)
+			ctx.JSON(http.StatusInternalServerError,
+				gin.H{
+					"response": "Internal Server Error.",
+				})
+		}
+
 		// send the respose to user with website URL
 		websiteURL := "http://" + projectID + ".localhost:8080"
 		ctx.JSON(http.StatusOK, gin.H{
-			"status":     "Start deploying...",
-			"websiteUrl": websiteURL,
+			"status":        "Start deploying...",
+			"websiteUrl":    websiteURL,
+			"deployment ID": deploymentID,
 		})
 	} else {
 		app.errorLogger.Println("Payload GitHub URL is not valid.")
@@ -145,24 +188,39 @@ func runEcsTask(ecsClient *ecs.Client, githubRepoUrlEnv string, projectID string
 	return nil
 }
 
-// Generate a random Project ID
-func generateProjectID(n int) string {
-	var letters = []rune("abcdefghijklmnopqrstuvwxyz0123456789")
-	str := make([]rune, n)
-
-	for i := range str {
-		str[i] = letters[rand.Intn(len(letters))]
-	}
-
-	return string(str)
-}
-
 // /project endpoint to save the project info to db
 func (app *app) projectHandler(ctx *gin.Context) {
 	projectData := models.Project{}
 
 	body := ctx.Request.Body
 	err := json.NewDecoder(body).Decode(&projectData)
+	if err != nil {
+		app.errorLogger.Println("Unable to parse the decode the JSON payload.")
+		ctx.JSON(
+			http.StatusInternalServerError,
+			gin.H{
+				"response": "Internal Server Issue",
+			},
+		)
+		return
+	}
+
+	session, err := app.session.Get(ctx.Request, "thisSession")
+	currentLoggedInUserID := session.Values["id"].(int)
+	if err != nil {
+		app.errorLogger.Println("Unable to parse the logged-in user id from cookies to uint.")
+		ctx.JSON(
+			http.StatusInternalServerError,
+			gin.H{
+				"response": "Server Issue",
+			},
+		)
+		return
+	}
+
+	// set userid key to current logged in user ID (get it from cookie)
+	projectData.UserID = uint(currentLoggedInUserID)
+
 	if err != nil {
 		app.errorLogger.Println("Unable to decode the request payload JSON.")
 		ctx.JSON(
@@ -171,9 +229,10 @@ func (app *app) projectHandler(ctx *gin.Context) {
 				"response": "Server Issue",
 			},
 		)
+		return
 	}
 
-	_, err = app.projectModel.Insert(projectData)
+	id, err := app.projectModel.Insert(projectData)
 	if err != nil {
 		app.errorLogger.Println(err)
 		ctx.JSON(
@@ -182,8 +241,16 @@ func (app *app) projectHandler(ctx *gin.Context) {
 				"response": "Unable to save the data.",
 			},
 		)
+		return
 	}
 
+	ctx.JSON(
+		http.StatusOK,
+		gin.H{
+			"response":   "Project info saved successfully.",
+			"Project ID": id,
+		},
+	)
 }
 
 // user signup
