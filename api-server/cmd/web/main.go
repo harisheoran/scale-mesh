@@ -80,7 +80,7 @@ func main() {
 		ErrorLog: errorLogger,
 	}
 
-	err = server.ListenAndServeTLS("./../tls/cert.pem", "./../tls/key.pem")
+	err = server.ListenAndServe()
 	if err != nil {
 		app.errorLogger.Fatalf("unable to start the api at port %s, %s", apiConfig.address, err)
 	}
