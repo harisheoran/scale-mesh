@@ -18,5 +18,5 @@ func (app *app) routes() http.Handler {
 	router.POST("/user/login", app.userLoginHandler)
 	router.POST("/user/logout", app.userLogoutHandler)
 
-	return app.recoverPanic(app.logRequestMiddleware(secureHeaderMiddleware(router)))
+	return app.recoverPanic((secureHeaderMiddleware(router)))
 }

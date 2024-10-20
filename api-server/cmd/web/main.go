@@ -31,6 +31,7 @@ type app struct {
 }
 
 func main() {
+	log.Println(os.Getenv("SESSION_KEY"))
 	// get the Database connection pool
 	dbConnectionPool, err := openDBConnectionPool(dsn)
 	if err != nil {
