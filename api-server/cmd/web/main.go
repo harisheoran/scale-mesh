@@ -32,6 +32,12 @@ type app struct {
 
 func main() {
 	log.Println("SESSION KEY", os.Getenv("SESSION_KEY"))
+	store.Options = &sessions.Options{
+		Path:     "/",
+		HttpOnly: true,                 // Prevent JavaScript access to the cookie
+		Secure:   false,                // Ensure 'false' for HTTP requests (use 'true' only with HTTPS)
+		SameSite: http.SameSiteLaxMode, // Adjust SameSite attribute if necessary
+	}
 	// get the Database connection pool
 	dbConnectionPool, err := openDBConnectionPool(dsn)
 	if err != nil {
