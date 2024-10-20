@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: api-server-container
-        image: harisheoran/api-server:main
+        image: api-server:latest
         ports:
         - containerPort: 9000
         env:
